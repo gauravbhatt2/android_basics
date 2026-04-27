@@ -1,21 +1,33 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
-
 package com.example.myapplication
 
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import androidx.navigation.compose.*
 import com.example.myapplication.ui.theme.MyApplicationTheme
+
+// ✅ Data class
+data class Note(
+    val title: String,
+    val description: String
+)
+
+// ✅ Global state (simple approach)
+val notesList = mutableStateListOf<Note>()
+var selectedNote: Note? = null
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -23,71 +35,79 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MyApplicationTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = Color.White
+
+                val navController = rememberNavController()
+
+                NavHost(
+                    navController = navController,
+                    startDestination = "home"
                 ) {
-                    MainScreen()
+                    composable("home") {
+                        MainScreen(navController)
+                    }
+                    composable("detail") {
+                        DetailScreen(navController)
+                    }
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(navController: NavController) {
 
-    var text by remember { mutableStateOf("") }
-    val notes = remember { mutableStateListOf<String>() }
+    var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+
     val context = LocalContext.current
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
-
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = "Notes App",
-                        color = Color.White
-                    )
-                },
+                title = { Text("Notes App") },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF4CAF50)
-                )
+                    containerColor = Color.Green)
             )
         }
-
-    ) { innerPadding ->
+    ) { padding ->
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(padding)
                 .padding(16.dp)
         ) {
 
             OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                label = { Text("Enter note") },
+                value = title,
+                onValueChange = { title = it },
+                label = { Text("Enter title") },
+                placeholder = { Text("e.g. Buy groceries") },
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(10.dp))
 
+            OutlinedTextField(
+                value = description,
+                onValueChange = { description = it },
+                label = { Text("Enter description") },
+                placeholder = { Text("e.g. Milk, eggs") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             Button(
                 onClick = {
-                    if (text.isNotBlank()) {
-                        notes.add(text)
-                        text = ""
+                    if (title.isNotBlank() && description.isNotBlank()) {
+                        notesList.add(Note(title, description))
+                        title = ""
+                        description = ""
                     } else {
-                        Toast.makeText(
-                            context,
-                            "Empty input!",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        Toast.makeText(context, "Fields cannot be empty!", Toast.LENGTH_SHORT).show()
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
@@ -97,15 +117,23 @@ fun MainScreen() {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-
-            Column {
-                notes.forEach { note ->
-                    Text(
-                        text = "• $note",
+            LazyColumn {
+                items(notesList) { note ->
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(8.dp)
-                    )
+                            .padding(vertical = 4.dp)
+                            .clickable {
+                                selectedNote = note
+                                navController.navigate("detail")
+                            }
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(text = note.title)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(text = note.description)
+                        }
+                    }
                 }
             }
         }
@@ -114,8 +142,10 @@ fun MainScreen() {
 
 @Preview(showBackground = true)
 @Composable
-fun PreviewApp() {
+fun PreviewMainScreen() {
     MyApplicationTheme {
-        MainScreen()
+        // ✅ Fake NavController for preview
+        val navController = rememberNavController()
+        MainScreen(navController)
     }
 }
